@@ -17,25 +17,27 @@ RUN apt-get update && apt-get install -y \
     # Clean up to reduce image size
     && rm -rf /var/lib/apt/lists/*
 
-# Create a workspace directory for persistent data
-RUN mkdir -p /workspace && \
-    # Initialize git config with safe directory
-    git config --system --add safe.directory /workspace
-
-# Create a script to handle user workspace creation and management
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
 # Set the working directory to workspace
 WORKDIR /workspace
+
+# Create a script to initialize the workspace
+RUN echo '#!/bin/bash\n\
+mkdir -p /workspace\n\
+cd /workspace\n\
+# Add your repository cloning commands here\n\
+git clone https://github.com/se-guru/ProjectOne.git || true\n\
+git clone https://github.com/se-guru/ProjectTwo.git || true\n\
+\n\
+# Start the services\n\
+ungit --port 8448 --no-b --ungitBindIp 0.0.0.0 --forcedLaunchPath=/workspace --allowCheckoutFiles 1 & \n\
+ttyd -W -t fontSize=14 bash -c "cd /workspace && exec bash"' > /init-workspace.sh && \
+chmod +x /init-workspace.sh
 
 # Expose the ports for ttyd and Ungit
 EXPOSE 7681 8448
 
 # Use tini for process management
-# ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# Start both Ungit and ttyd
-# CMD bash -c "ungit --port 8448 --no-b --ungitBindIp 0.0.0.0 --forcedLaunchPath=/workspace --allowCheckoutFiles 1 & ttyd -W bash"
-
-ENTRYPOINT ["/start.sh"]
+# Start the initialization script
+CMD ["/init-workspace.sh"]
